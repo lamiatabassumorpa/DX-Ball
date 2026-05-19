@@ -1,17 +1,19 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 using namespace std;
 
 int winW = 800, winH = 600;
 
 // Game state
-int gameState = 0; 
+int gameState = 0;
 // 0 = menu, 1 = playing, 2 = paused, 3 = gameover, 4 = won
 
 // Paddle
 float paddleX = 350, paddleY = 30;
 float paddleW = 100, paddleH = 15;
+float normalPaddleW = 100;
 
 // Ball
 float ballX = 400, ballY = 100;
@@ -22,11 +24,21 @@ float ballDX = 3, ballDY = 3;
 bool bricks[5][10];
 int score = 0, lives = 3;
 
+// Wide paddle perk
+bool wideActive = false;
+int wideTimer = 0;
+bool perkFalling = false;
+float perkX, perkY;
+
 void initGame() {
     score = 0; lives = 3;
     ballX = 400; ballY = 100;
     ballDX = 3; ballDY = 3;
     paddleX = 350;
+    paddleW = normalPaddleW;
+    wideActive = false;
+    wideTimer = 0;
+    perkFalling = false;
     for(int i=0; i<5; i++)
         for(int j=0; j<10; j++)
             bricks[i][j] = true;
@@ -96,6 +108,19 @@ void drawBricks() {
     }
 }
 
+void drawPerk() {
+    if(!perkFalling) return;
+    glColor3f(0, 1, 1);
+    glBegin(GL_QUADS);
+    glVertex2f(perkX-10, perkY-10);
+    glVertex2f(perkX+10, perkY-10);
+    glVertex2f(perkX+10, perkY+10);
+    glVertex2f(perkX-10, perkY+10);
+    glEnd();
+    glColor3f(0,0,0);
+    drawText(perkX-5, perkY-5, "W");
+}
+
 void checkBrickCollision() {
     bool anyLeft = false;
     for(int i=0; i<5; i++) {
@@ -109,6 +134,11 @@ void checkBrickCollision() {
                 bricks[i][j] = false;
                 ballDY = -ballDY;
                 score += 10;
+                if(!perkFalling && rand()%3 == 0) {
+                    perkFalling = true;
+                    perkX = x + 31;
+                    perkY = y;
+                }
             }
         }
     }
@@ -132,11 +162,35 @@ void update(int val) {
 
     if(ballY <= 0) {
         lives--;
+        perkFalling = false;
         if(lives == 0) {
             gameState = 3;
         } else {
             ballX = 400; ballY = 100;
             ballDX = 3; ballDY = 3;
+        }
+    }
+
+    // Perk falling
+    if(perkFalling) {
+        perkY -= 3;
+        if(perkY <= paddleY+paddleH &&
+           perkX >= paddleX &&
+           perkX <= paddleX+paddleW) {
+            perkFalling = false;
+            wideActive = true;
+            wideTimer = 300;
+            paddleW = 180;
+        }
+        if(perkY <= 0) perkFalling = false;
+    }
+
+    // Wide timer
+    if(wideActive) {
+        wideTimer--;
+        if(wideTimer <= 0) {
+            wideActive = false;
+            paddleW = normalPaddleW;
         }
     }
 
@@ -149,7 +203,6 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if(gameState == 0) {
-        // Menu
         glColor3f(1,1,0);
         drawBigText(310, 450, "DX BALL");
 
@@ -172,20 +225,27 @@ void display() {
         glColor3f(0.7,0.7,0.7);
         drawText(220, 180, "Mouse / Arrow keys to move paddle");
         drawText(270, 155, "P = Pause    R = Restart");
+        drawText(270, 130, "Catch W for Wide Paddle!");
 
     } else if(gameState == 1) {
         drawBricks();
         drawPaddle();
         drawBall();
+        drawPerk();
         glColor3f(1,1,1);
         char s[50];
         sprintf(s, "Score: %d  Lives: %d", score, lives);
         drawText(10, 580, s);
+        if(wideActive) {
+            glColor3f(0,1,1);
+            drawText(650, 580, "WIDE!");
+        }
 
     } else if(gameState == 2) {
         drawBricks();
         drawPaddle();
         drawBall();
+        drawPerk();
         glColor3f(1,1,0);
         drawBigText(320, 320, "PAUSED");
         drawText(240, 280, "Press P to continue");
