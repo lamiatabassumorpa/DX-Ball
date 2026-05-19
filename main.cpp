@@ -24,11 +24,17 @@ float ballDX = 3, ballDY = 3;
 bool bricks[5][10];
 int score = 0, lives = 3;
 
-// Wide paddle perk
-bool wideActive = false;
-int wideTimer = 0;
+// Perks
 bool perkFalling = false;
 float perkX, perkY;
+int perkType = 0; // 1 = wide, 2 = fireball
+
+bool wideActive = false;
+int wideTimer = 0;
+float normalPaddleW2 = 100;
+
+bool fireballActive = false;
+int fireballTimer = 0;
 
 void initGame() {
     score = 0; lives = 3;
@@ -38,6 +44,8 @@ void initGame() {
     paddleW = normalPaddleW;
     wideActive = false;
     wideTimer = 0;
+    fireballActive = false;
+    fireballTimer = 0;
     perkFalling = false;
     for(int i=0; i<5; i++)
         for(int j=0; j<10; j++)
@@ -58,7 +66,10 @@ void drawBigText(float x, float y, const char* text) {
 }
 
 void drawPaddle() {
-    glColor3f(0, 1, 0);
+    if(wideActive)
+        glColor3f(0, 1, 1);
+    else
+        glColor3f(0, 1, 0);
     glBegin(GL_QUADS);
     glVertex2f(paddleX, paddleY);
     glVertex2f(paddleX+paddleW, paddleY);
@@ -68,7 +79,10 @@ void drawPaddle() {
 }
 
 void drawBall() {
-    glColor3f(1, 1, 1);
+    if(fireballActive)
+        glColor3f(1, 0.5, 0);
+    else
+        glColor3f(1, 1, 1);
     glBegin(GL_TRIANGLE_FAN);
     for(int i=0; i<=360; i++) {
         float theta = i * 3.1416/180;
@@ -110,15 +124,27 @@ void drawBricks() {
 
 void drawPerk() {
     if(!perkFalling) return;
-    glColor3f(0, 1, 1);
-    glBegin(GL_QUADS);
-    glVertex2f(perkX-10, perkY-10);
-    glVertex2f(perkX+10, perkY-10);
-    glVertex2f(perkX+10, perkY+10);
-    glVertex2f(perkX-10, perkY+10);
-    glEnd();
-    glColor3f(0,0,0);
-    drawText(perkX-5, perkY-5, "W");
+    if(perkType == 1) {
+        glColor3f(0, 1, 1);
+        glBegin(GL_QUADS);
+        glVertex2f(perkX-10, perkY-10);
+        glVertex2f(perkX+10, perkY-10);
+        glVertex2f(perkX+10, perkY+10);
+        glVertex2f(perkX-10, perkY+10);
+        glEnd();
+        glColor3f(0,0,0);
+        drawText(perkX-5, perkY-5, "W");
+    } else if(perkType == 2) {
+        glColor3f(1, 0.3, 0);
+        glBegin(GL_QUADS);
+        glVertex2f(perkX-10, perkY-10);
+        glVertex2f(perkX+10, perkY-10);
+        glVertex2f(perkX+10, perkY+10);
+        glVertex2f(perkX-10, perkY+10);
+        glEnd();
+        glColor3f(1,1,1);
+        drawText(perkX-5, perkY-5, "F");
+    }
 }
 
 void checkBrickCollision() {
@@ -129,15 +155,27 @@ void checkBrickCollision() {
             anyLeft = true;
             float x = 50 + j*72;
             float y = 450 + i*35;
-            if(ballX>=x && ballX<=x+62 &&
-               ballY>=y && ballY<=y+25) {
-                bricks[i][j] = false;
-                ballDY = -ballDY;
-                score += 10;
-                if(!perkFalling && rand()%3 == 0) {
-                    perkFalling = true;
-                    perkX = x + 31;
-                    perkY = y;
+
+            if(fireballActive) {
+                // Fireball - brick ভেদ করে যায়
+                if(ballX>=x && ballX<=x+62 &&
+                   ballY>=y && ballY<=y+25) {
+                    bricks[i][j] = false;
+                    score += 10;
+                    // ballDY উল্টো হয় না!
+                }
+            } else {
+                if(ballX>=x && ballX<=x+62 &&
+                   ballY>=y && ballY<=y+25) {
+                    bricks[i][j] = false;
+                    ballDY = -ballDY;
+                    score += 10;
+                    if(!perkFalling && rand()%3 == 0) {
+                        perkFalling = true;
+                        perkX = x + 31;
+                        perkY = y;
+                        perkType = (rand()%2) + 1;
+                    }
                 }
             }
         }
@@ -163,6 +201,7 @@ void update(int val) {
     if(ballY <= 0) {
         lives--;
         perkFalling = false;
+        fireballActive = false;
         if(lives == 0) {
             gameState = 3;
         } else {
@@ -178,9 +217,14 @@ void update(int val) {
            perkX >= paddleX &&
            perkX <= paddleX+paddleW) {
             perkFalling = false;
-            wideActive = true;
-            wideTimer = 300;
-            paddleW = 180;
+            if(perkType == 1) {
+                wideActive = true;
+                wideTimer = 300;
+                paddleW = 180;
+            } else if(perkType == 2) {
+                fireballActive = true;
+                fireballTimer = 300;
+            }
         }
         if(perkY <= 0) perkFalling = false;
     }
@@ -191,6 +235,14 @@ void update(int val) {
         if(wideTimer <= 0) {
             wideActive = false;
             paddleW = normalPaddleW;
+        }
+    }
+
+    // Fireball timer
+    if(fireballActive) {
+        fireballTimer--;
+        if(fireballTimer <= 0) {
+            fireballActive = false;
         }
     }
 
@@ -225,7 +277,7 @@ void display() {
         glColor3f(0.7,0.7,0.7);
         drawText(220, 180, "Mouse / Arrow keys to move paddle");
         drawText(270, 155, "P = Pause    R = Restart");
-        drawText(270, 130, "Catch W for Wide Paddle!");
+        drawText(230, 130, "W = Wide Paddle   F = Fireball");
 
     } else if(gameState == 1) {
         drawBricks();
@@ -238,7 +290,11 @@ void display() {
         drawText(10, 580, s);
         if(wideActive) {
             glColor3f(0,1,1);
-            drawText(650, 580, "WIDE!");
+            drawText(620, 580, "WIDE!");
+        }
+        if(fireballActive) {
+            glColor3f(1,0.5,0);
+            drawText(680, 580, "FIRE!");
         }
 
     } else if(gameState == 2) {
