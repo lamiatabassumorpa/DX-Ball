@@ -35,6 +35,8 @@ int wideTimer = 0;
 bool fireballActive = false;
 int fireballTimer = 0;
 
+bool gameStarted = false; // game শুরু হয়েছে কিনা
+
 void initGame() {
     score = 0; lives = 3;
     ballX = 400; ballY = 100;
@@ -50,6 +52,7 @@ void initGame() {
         for(int j=0; j<10; j++)
             bricks[i][j] = true;
     gameState = 1;
+    gameStarted = true;
 }
 
 void drawText(float x, float y, const char* text) {
@@ -272,14 +275,27 @@ void display() {
         glColor3f(1,1,0);
         drawBigText(310, 450, "DX BALL");
 
+        // Start button
         glColor3f(0, 0.8, 0);
         glBegin(GL_QUADS);
-        glVertex2f(300, 300); glVertex2f(500, 300);
-        glVertex2f(500, 340); glVertex2f(300, 340);
+        glVertex2f(300, 350); glVertex2f(500, 350);
+        glVertex2f(500, 390); glVertex2f(300, 390);
         glEnd();
         glColor3f(0,0,0);
-        drawText(370, 315, "START");
+        drawText(370, 365, "START");
 
+        // Resume button (only if game started)
+        if(gameStarted) {
+            glColor3f(0, 0.5, 1);
+            glBegin(GL_QUADS);
+            glVertex2f(300, 295); glVertex2f(500, 295);
+            glVertex2f(500, 335); glVertex2f(300, 335);
+            glEnd();
+            glColor3f(1,1,1);
+            drawText(365, 310, "RESUME");
+        }
+
+        // Exit button
         glColor3f(0.8, 0, 0);
         glBegin(GL_QUADS);
         glVertex2f(300, 240); glVertex2f(500, 240);
@@ -290,7 +306,7 @@ void display() {
 
         glColor3f(0.7,0.7,0.7);
         drawText(220, 180, "Mouse / Arrow keys to move paddle");
-        drawText(270, 155, "P = Pause    R = Restart");
+        drawText(270, 155, "P = Pause   M = Menu   R = Restart");
         drawText(200, 130, "W = Wide Paddle  F = Fireball  Heart = Extra Life");
 
     } else if(gameState == 1) {
@@ -319,6 +335,7 @@ void display() {
         glColor3f(1,1,0);
         drawBigText(320, 320, "PAUSED");
         drawText(240, 280, "Press P to continue");
+        drawText(255, 250, "Press M for Menu");
 
     } else if(gameState == 3) {
         glColor3f(1,0,0);
@@ -328,6 +345,7 @@ void display() {
         glColor3f(1,1,1);
         drawText(350, 280, s);
         drawText(270, 250, "Press R to restart");
+        drawText(270, 220, "Press M for Menu");
 
     } else if(gameState == 4) {
         glColor3f(0,1,0);
@@ -337,6 +355,7 @@ void display() {
         glColor3f(1,1,1);
         drawText(350, 280, s);
         drawText(270, 250, "Press R to restart");
+        drawText(270, 220, "Press M for Menu");
     }
 
     glutSwapBuffers();
@@ -346,10 +365,17 @@ void mouseClick(int button, int state, int x, int y) {
     if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if(gameState == 0) {
             int my = winH - y;
-            if(x>=300 && x<=500 && my>=300 && my<=340) {
+            // Start
+            if(x>=300 && x<=500 && my>=350 && my<=390) {
                 initGame();
                 glutTimerFunc(16, update, 0);
             }
+            // Resume
+            if(gameStarted && x>=300 && x<=500 && my>=295 && my<=335) {
+                gameState = 1;
+                glutTimerFunc(16, update, 0);
+            }
+            // Exit
             if(x>=300 && x<=500 && my>=240 && my<=280) {
                 exit(0);
             }
@@ -375,6 +401,13 @@ void keyboard(unsigned char key, int x, int y) {
             glutTimerFunc(16, update, 0);
         }
         glutPostRedisplay();
+    }
+
+    if(key == 'm' || key == 'M') {
+        if(gameState == 1 || gameState == 2) {
+            gameState = 0;
+            glutPostRedisplay();
+        }
     }
 
     if(key == 'r' || key == 'R') {
