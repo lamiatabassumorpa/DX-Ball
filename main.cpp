@@ -8,7 +8,7 @@ int winW = 800, winH = 600;
 
 // Game state
 int gameState = 0;
-// 0 = menu, 1 = playing, 2 = paused, 3 = gameover, 4 = won
+// 0 = menu, 1 = playing, 2 = paused, 3 = gameover, 4 = won, 5 = help
 
 // Paddle
 float paddleX = 350, paddleY = 30;
@@ -27,7 +27,8 @@ int score = 0, lives = 3;
 // Perks
 bool perkFalling = false;
 float perkX, perkY;
-int perkType = 0; // 1 = wide, 2 = fireball, 3 = extralife
+int perkType = 0;
+// 1 = wide, 2 = fireball, 3 = extralife, 4 = shrink (damage)
 
 bool wideActive = false;
 int wideTimer = 0;
@@ -35,7 +36,10 @@ int wideTimer = 0;
 bool fireballActive = false;
 int fireballTimer = 0;
 
-bool gameStarted = false; // game শুরু হয়েছে কিনা
+bool shrinkActive = false;
+int shrinkTimer = 0;
+
+bool gameStarted = false;
 
 void initGame() {
     score = 0; lives = 3;
@@ -47,6 +51,8 @@ void initGame() {
     wideTimer = 0;
     fireballActive = false;
     fireballTimer = 0;
+    shrinkActive = false;
+    shrinkTimer = 0;
     perkFalling = false;
     for(int i=0; i<5; i++)
         for(int j=0; j<10; j++)
@@ -70,6 +76,8 @@ void drawBigText(float x, float y, const char* text) {
 void drawPaddle() {
     if(wideActive)
         glColor3f(0, 1, 1);
+    else if(shrinkActive)
+        glColor3f(1, 0, 0.5);
     else
         glColor3f(0, 1, 0);
     glBegin(GL_QUADS);
@@ -161,6 +169,17 @@ void drawPerk() {
         drawText(perkX-5, perkY-5, "F");
     } else if(perkType == 3) {
         drawHeart(perkX, perkY);
+    } else if(perkType == 4) {
+        // Shrink damage — লাল S box
+        glColor3f(1, 0, 0);
+        glBegin(GL_QUADS);
+        glVertex2f(perkX-10, perkY-10);
+        glVertex2f(perkX+10, perkY-10);
+        glVertex2f(perkX+10, perkY+10);
+        glVertex2f(perkX-10, perkY+10);
+        glEnd();
+        glColor3f(1,1,1);
+        drawText(perkX-5, perkY-5, "S");
     }
 }
 
@@ -189,7 +208,7 @@ void checkBrickCollision() {
                         perkFalling = true;
                         perkX = x + 31;
                         perkY = y;
-                        perkType = (rand()%3) + 1;
+                        perkType = (rand()%4) + 1;
                     }
                 }
             }
@@ -217,6 +236,8 @@ void update(int val) {
         lives--;
         perkFalling = false;
         fireballActive = false;
+        shrinkActive = false;
+        paddleW = normalPaddleW;
         if(lives == 0) {
             gameState = 3;
         } else {
@@ -234,6 +255,7 @@ void update(int val) {
             perkFalling = false;
             if(perkType == 1) {
                 wideActive = true;
+                shrinkActive = false;
                 wideTimer = 300;
                 paddleW = 180;
             } else if(perkType == 2) {
@@ -241,6 +263,11 @@ void update(int val) {
                 fireballTimer = 300;
             } else if(perkType == 3) {
                 lives++;
+            } else if(perkType == 4) {
+                shrinkActive = true;
+                wideActive = false;
+                shrinkTimer = 300;
+                paddleW = 50;
             }
         }
         if(perkY <= 0) perkFalling = false;
@@ -263,51 +290,108 @@ void update(int val) {
         }
     }
 
+    // Shrink timer
+    if(shrinkActive) {
+        shrinkTimer--;
+        if(shrinkTimer <= 0) {
+            shrinkActive = false;
+            paddleW = normalPaddleW;
+        }
+    }
+
     checkBrickCollision();
     glutPostRedisplay();
     glutTimerFunc(16, update, 0);
 }
 
+void drawHelp() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glColor3f(1,1,0);
+    drawBigText(300, 540, "HOW TO PLAY");
+
+    glColor3f(1,1,1);
+    drawText(100, 490, "CONTROLS:");
+    drawText(100, 465, "Mouse / Left-Right Arrow  =  Move Paddle");
+    drawText(100, 440, "P  =  Pause / Resume");
+    drawText(100, 415, "M  =  Go to Menu");
+    drawText(100, 390, "R  =  Restart");
+    drawText(100, 365, "ESC  =  Exit");
+
+    drawText(100, 320, "PERKS (catch to get):");
+    glColor3f(0,1,1);
+    drawText(100, 295, "W (Cyan)     =  Wide Paddle");
+    glColor3f(1,0.5,0);
+    drawText(100, 270, "F (Orange)   =  Fireball - breaks bricks without bounce");
+    glColor3f(1,0,0);
+    drawText(100, 245, "Heart (Red)  =  Extra Life");
+
+    drawText(100, 200, "DAMAGE (avoid these!):");
+    glColor3f(1,0,0);
+    drawText(100, 175, "S (Red)      =  Shrinks your paddle!");
+
+    glColor3f(1,1,1);
+    drawText(100, 120, "GOAL: Break all bricks to win!");
+    drawText(100, 95,  "You have 3 lives. Don't let the ball fall!");
+
+    glColor3f(0.7,0.7,0.7);
+    drawText(280, 40, "Press M to go back to Menu");
+
+    glutSwapBuffers();
+}
+
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
+    if(gameState == 5) {
+        drawHelp();
+        return;
+    }
+
     if(gameState == 0) {
         glColor3f(1,1,0);
-        drawBigText(310, 450, "DX BALL");
+        drawBigText(310, 480, "DX BALL");
 
         // Start button
         glColor3f(0, 0.8, 0);
         glBegin(GL_QUADS);
-        glVertex2f(300, 350); glVertex2f(500, 350);
-        glVertex2f(500, 390); glVertex2f(300, 390);
+        glVertex2f(300, 390); glVertex2f(500, 390);
+        glVertex2f(500, 425); glVertex2f(300, 425);
         glEnd();
         glColor3f(0,0,0);
-        drawText(370, 365, "START");
+        drawText(370, 403, "START");
 
-        // Resume button (only if game started)
+        // Resume button
         if(gameStarted) {
             glColor3f(0, 0.5, 1);
             glBegin(GL_QUADS);
-            glVertex2f(300, 295); glVertex2f(500, 295);
-            glVertex2f(500, 335); glVertex2f(300, 335);
+            glVertex2f(300, 340); glVertex2f(500, 340);
+            glVertex2f(500, 375); glVertex2f(300, 375);
             glEnd();
             glColor3f(1,1,1);
-            drawText(365, 310, "RESUME");
+            drawText(365, 353, "RESUME");
         }
+
+        // Help button
+        glColor3f(0.8, 0.8, 0);
+        glBegin(GL_QUADS);
+        glVertex2f(300, 290); glVertex2f(500, 290);
+        glVertex2f(500, 325); glVertex2f(300, 325);
+        glEnd();
+        glColor3f(0,0,0);
+        drawText(375, 303, "HELP");
 
         // Exit button
         glColor3f(0.8, 0, 0);
         glBegin(GL_QUADS);
         glVertex2f(300, 240); glVertex2f(500, 240);
-        glVertex2f(500, 280); glVertex2f(300, 280);
+        glVertex2f(500, 275); glVertex2f(300, 275);
         glEnd();
         glColor3f(1,1,1);
-        drawText(375, 255, "EXIT");
+        drawText(375, 253, "EXIT");
 
         glColor3f(0.7,0.7,0.7);
-        drawText(220, 180, "Mouse / Arrow keys to move paddle");
-        drawText(270, 155, "P = Pause   M = Menu   R = Restart");
-        drawText(200, 130, "W = Wide Paddle  F = Fireball  Heart = Extra Life");
+        drawText(270, 190, "P = Pause   M = Menu   R = Restart");
 
     } else if(gameState == 1) {
         drawBricks();
@@ -320,11 +404,15 @@ void display() {
         drawText(10, 580, s);
         if(wideActive) {
             glColor3f(0,1,1);
-            drawText(620, 580, "WIDE!");
+            drawText(580, 580, "WIDE!");
         }
         if(fireballActive) {
             glColor3f(1,0.5,0);
-            drawText(680, 580, "FIRE!");
+            drawText(640, 580, "FIRE!");
+        }
+        if(shrinkActive) {
+            glColor3f(1,0,0);
+            drawText(700, 580, "SHRINK!");
         }
 
     } else if(gameState == 2) {
@@ -366,17 +454,22 @@ void mouseClick(int button, int state, int x, int y) {
         if(gameState == 0) {
             int my = winH - y;
             // Start
-            if(x>=300 && x<=500 && my>=350 && my<=390) {
+            if(x>=300 && x<=500 && my>=390 && my<=425) {
                 initGame();
                 glutTimerFunc(16, update, 0);
             }
             // Resume
-            if(gameStarted && x>=300 && x<=500 && my>=295 && my<=335) {
+            if(gameStarted && x>=300 && x<=500 && my>=340 && my<=375) {
                 gameState = 1;
                 glutTimerFunc(16, update, 0);
             }
+            // Help
+            if(x>=300 && x<=500 && my>=290 && my<=325) {
+                gameState = 5;
+                glutPostRedisplay();
+            }
             // Exit
-            if(x>=300 && x<=500 && my>=240 && my<=280) {
+            if(x>=300 && x<=500 && my>=240 && my<=275) {
                 exit(0);
             }
         }
@@ -404,14 +497,16 @@ void keyboard(unsigned char key, int x, int y) {
     }
 
     if(key == 'm' || key == 'M') {
-        if(gameState == 1 || gameState == 2) {
+        if(gameState == 1 || gameState == 2 ||
+           gameState == 5) {
             gameState = 0;
             glutPostRedisplay();
         }
     }
 
     if(key == 'r' || key == 'R') {
-        if(gameState == 3 || gameState == 4 || gameState == 1) {
+        if(gameState == 3 || gameState == 4 ||
+           gameState == 1) {
             initGame();
             glutTimerFunc(16, update, 0);
         }
