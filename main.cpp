@@ -27,11 +27,10 @@ int score = 0, lives = 3;
 // Perks
 bool perkFalling = false;
 float perkX, perkY;
-int perkType = 0; // 1 = wide, 2 = fireball
+int perkType = 0; // 1 = wide, 2 = fireball, 3 = extralife
 
 bool wideActive = false;
 int wideTimer = 0;
-float normalPaddleW2 = 100;
 
 bool fireballActive = false;
 int fireballTimer = 0;
@@ -122,6 +121,19 @@ void drawBricks() {
     }
 }
 
+void drawHeart(float x, float y) {
+    glColor3f(1, 0, 0);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(x, y);
+    for(int i=0; i<=360; i++) {
+        float theta = i * 3.1416/180;
+        float hx = x + 7 * sin(theta) * sin(theta) * sin(theta);
+        float hy = y + 7 * (0.8*cos(theta) - 0.3*cos(2*theta) - 0.1*cos(3*theta));
+        glVertex2f(hx, hy);
+    }
+    glEnd();
+}
+
 void drawPerk() {
     if(!perkFalling) return;
     if(perkType == 1) {
@@ -144,6 +156,8 @@ void drawPerk() {
         glEnd();
         glColor3f(1,1,1);
         drawText(perkX-5, perkY-5, "F");
+    } else if(perkType == 3) {
+        drawHeart(perkX, perkY);
     }
 }
 
@@ -157,12 +171,10 @@ void checkBrickCollision() {
             float y = 450 + i*35;
 
             if(fireballActive) {
-                // Fireball - brick ভেদ করে যায়
                 if(ballX>=x && ballX<=x+62 &&
                    ballY>=y && ballY<=y+25) {
                     bricks[i][j] = false;
                     score += 10;
-                    // ballDY উল্টো হয় না!
                 }
             } else {
                 if(ballX>=x && ballX<=x+62 &&
@@ -174,7 +186,7 @@ void checkBrickCollision() {
                         perkFalling = true;
                         perkX = x + 31;
                         perkY = y;
-                        perkType = (rand()%2) + 1;
+                        perkType = (rand()%3) + 1;
                     }
                 }
             }
@@ -224,6 +236,8 @@ void update(int val) {
             } else if(perkType == 2) {
                 fireballActive = true;
                 fireballTimer = 300;
+            } else if(perkType == 3) {
+                lives++;
             }
         }
         if(perkY <= 0) perkFalling = false;
@@ -277,7 +291,7 @@ void display() {
         glColor3f(0.7,0.7,0.7);
         drawText(220, 180, "Mouse / Arrow keys to move paddle");
         drawText(270, 155, "P = Pause    R = Restart");
-        drawText(230, 130, "W = Wide Paddle   F = Fireball");
+        drawText(200, 130, "W = Wide Paddle  F = Fireball  Heart = Extra Life");
 
     } else if(gameState == 1) {
         drawBricks();
