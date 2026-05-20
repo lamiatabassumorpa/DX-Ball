@@ -19,6 +19,7 @@ float normalPaddleW = 100;
 float ballX = 400, ballY = 100;
 float ballR = 10;
 float ballDX = 3, ballDY = 3;
+int speedTimer = 0;
 
 // Bricks
 bool bricks[5][10];
@@ -28,7 +29,7 @@ int score = 0, lives = 3;
 bool perkFalling = false;
 float perkX, perkY;
 int perkType = 0;
-// 1 = wide, 2 = fireball, 3 = extralife, 4 = shrink (damage)
+// 1 = wide, 2 = fireball, 3 = extralife, 4 = shrink
 
 bool wideActive = false;
 int wideTimer = 0;
@@ -45,6 +46,7 @@ void initGame() {
     score = 0; lives = 3;
     ballX = 400; ballY = 100;
     ballDX = 3; ballDY = 3;
+    speedTimer = 0;
     paddleX = 350;
     paddleW = normalPaddleW;
     wideActive = false;
@@ -170,7 +172,6 @@ void drawPerk() {
     } else if(perkType == 3) {
         drawHeart(perkX, perkY);
     } else if(perkType == 4) {
-        // Shrink damage — লাল S box
         glColor3f(1, 0, 0);
         glBegin(GL_QUADS);
         glVertex2f(perkX-10, perkY-10);
@@ -223,6 +224,15 @@ void update(int val) {
     ballX += ballDX;
     ballY += ballDY;
 
+    // Speed increase every 500 frames
+    speedTimer++;
+    if(speedTimer % 500 == 0) {
+        if(fabs(ballDX) < 8) {
+            ballDX *= 1.1;
+            ballDY *= 1.1;
+        }
+    }
+
     if(ballX <= 0 || ballX >= winW) ballDX = -ballDX;
     if(ballY >= winH) ballDY = -ballDY;
 
@@ -243,6 +253,7 @@ void update(int val) {
         } else {
             ballX = 400; ballY = 100;
             ballDX = 3; ballDY = 3;
+            speedTimer = 0;
         }
     }
 
@@ -326,13 +337,15 @@ void drawHelp() {
     glColor3f(1,0,0);
     drawText(100, 245, "Heart (Red)  =  Extra Life");
 
+    glColor3f(1,1,1);
     drawText(100, 200, "DAMAGE (avoid these!):");
     glColor3f(1,0,0);
     drawText(100, 175, "S (Red)      =  Shrinks your paddle!");
 
     glColor3f(1,1,1);
-    drawText(100, 120, "GOAL: Break all bricks to win!");
-    drawText(100, 95,  "You have 3 lives. Don't let the ball fall!");
+    drawText(100, 130, "GOAL: Break all bricks to win!");
+    drawText(100, 105, "You have 3 lives. Ball gets faster over time!");
+    drawText(100, 80,  "Don't let the ball fall!");
 
     glColor3f(0.7,0.7,0.7);
     drawText(280, 40, "Press M to go back to Menu");
@@ -352,7 +365,6 @@ void display() {
         glColor3f(1,1,0);
         drawBigText(310, 480, "DX BALL");
 
-        // Start button
         glColor3f(0, 0.8, 0);
         glBegin(GL_QUADS);
         glVertex2f(300, 390); glVertex2f(500, 390);
@@ -361,7 +373,6 @@ void display() {
         glColor3f(0,0,0);
         drawText(370, 403, "START");
 
-        // Resume button
         if(gameStarted) {
             glColor3f(0, 0.5, 1);
             glBegin(GL_QUADS);
@@ -372,7 +383,6 @@ void display() {
             drawText(365, 353, "RESUME");
         }
 
-        // Help button
         glColor3f(0.8, 0.8, 0);
         glBegin(GL_QUADS);
         glVertex2f(300, 290); glVertex2f(500, 290);
@@ -381,7 +391,6 @@ void display() {
         glColor3f(0,0,0);
         drawText(375, 303, "HELP");
 
-        // Exit button
         glColor3f(0.8, 0, 0);
         glBegin(GL_QUADS);
         glVertex2f(300, 240); glVertex2f(500, 240);
@@ -453,22 +462,18 @@ void mouseClick(int button, int state, int x, int y) {
     if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if(gameState == 0) {
             int my = winH - y;
-            // Start
             if(x>=300 && x<=500 && my>=390 && my<=425) {
                 initGame();
                 glutTimerFunc(16, update, 0);
             }
-            // Resume
             if(gameStarted && x>=300 && x<=500 && my>=340 && my<=375) {
                 gameState = 1;
                 glutTimerFunc(16, update, 0);
             }
-            // Help
             if(x>=300 && x<=500 && my>=290 && my<=325) {
                 gameState = 5;
                 glutPostRedisplay();
             }
-            // Exit
             if(x>=300 && x<=500 && my>=240 && my<=275) {
                 exit(0);
             }
